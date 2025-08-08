@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:1.106.0
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # Basic authentication
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=changeme
+      
+      # Database configuration (using SQLite by default)
+      - DB_TYPE=sqlite
+      - DB_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
+      
+      # General settings
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      
+      # Security settings
+      - N8N_SECURE_COOKIE=false
+      - N8N_JWT_AUTH_ENABLED=false
+      
+      # Webhook settings
+      - WEBHOOK_URL=http://localhost:5678/
+      
+      # AI settings for GPT integration
+      - N8N_AI_ENABLED=true
+      
+      # Log level
+      - N8N_LOG_LEVEL=info
+      
+      # Timezone
+      - TZ=America/New_York
+      
+      # Workflow settings
+      - EXECUTIONS_TIMEOUT=3600
+      - EXECUTIONS_TIMEOUT_MAX=7200
+      
+      # Performance settings
+      - N8N_PAYLOAD_DEFAULT_MAX_SIZE=16
+      - N8N_METRICS=true
+      
+    volumes:
+      # Persist n8n data
+      - ./n8n_data:/home/node/.n8n
+      # Mount workflows directory for easy import/export
+      - ./workflows:/home/node/.n8n/workflows
+      # Mount custom nodes if needed
+      - ./custom_nodes:/home/node/.n8n/custom
+    
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Optional: PostgreSQL database for production use
+  # postgres:
+  #   image: postgres:13
+  #   container_name: n8n-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_DB=n8n
+  #     - POSTGRES_USER=n8n
+  #     - POSTGRES_PASSWORD=n8npassword
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+  # Optional: Redis for queue management in high-volume scenarios
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: n8n-redis
+  #   restart: unless-stopped
+  #   volumes:
+  #     - redis_data:/data
+  #   ports:
+  #     - "6379:6379"
+
+volumes:
+  n8n_data:
+    driver: local
+  # postgres_data:
+  #   driver: local
+  # redis_data:
+  #   driver: local
+
+networks:
+  default:
+    name: n8n-network
+    driver: bridge
